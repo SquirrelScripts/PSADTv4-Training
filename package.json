@@ -1,0 +1,11 @@
+{
+  "name": "psadtv4-training",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Narrated technician training session for PSAppDeployToolkit v4.",
+  "type": "module",
+  "scripts": {
+    "transcript": "node scripts/build-transcript.mjs",
+    "check": "node scripts/build-transcript.mjs --check && node --check assets/player.js"
+  }
+}

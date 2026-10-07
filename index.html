@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSADT v4 Technician Training</title>
+<meta name="description" content="A narrated, 20-minute technician training session on PSAppDeployToolkit v4: package anatomy, the session lifecycle, the ADT function set, configuration, and migrating from v3.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232456e6'/%3E%3Cpath d='M12 9.5v13l11-6.5z' fill='white'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/player.css">
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7"/><path d="M12 9.5v13l11-6.5z"/></svg></span>
+      <span class="brand-text"><strong>PSADT v4</strong> <span class="brand-sub">Technician Training</span></span>
+    </div>
+    <div class="topbar-mid">
+      <span class="chip" id="moduleChip">Welcome</span>
+      <span class="slide-count" id="slideCount">1 / 1</span>
+    </div>
+    <div class="status" id="status" data-state="idle"><span class="status-dot"></span><span id="statusText">Ready</span></div>
+  </header>
+
+  <main class="main">
+    <section class="player" aria-label="Session player">
+      <div class="stage" id="stage">
+        <div class="deck" id="deck">
+
+<!-- ============================================================
+     WELCOME
+     ============================================================ -->
+<section class="slide slide-title" id="welcome" data-module="Welcome" data-title="Welcome">
+  <p class="kicker">Technician training · Narrated session</p>
+  <h1>PSAppDeployToolkit&nbsp;v4</h1>
+  <p class="lead">Packaging, deploying and migrating with PSADT 4.1, for the people who build the packages.</p>
+  <ul class="meta-row">
+    <li><strong data-total-time>20 min</strong><span>runtime</span></li>
+    <li><strong>6</strong><span>modules</span></li>
+    <li><strong>3</strong><span>knowledge checks</span></li>
+    <li><strong>4.1.8</strong><span>verified against</span></li>
+  </ul>
+  <div class="credit-band">
+    <p><strong>Credit where it’s due.</strong> PSAppDeployToolkit is free, open-source software built by the PSAppDeployToolkit Team: Sean Lillis, Dan Cunningham, Muhammad Mashwani, Mitch Richters and Dan Gough, together with its community of contributors. This is independent training material, not an official PSAppDeployToolkit Team product.</p>
+  </div>
+  <aside class="narration">
+    <p>Welcome to this technician training session on PSAppDeployToolkit version 4, or PSADT for short. Over the next twenty minutes we’ll cover how a v4 package is put together, what happens when it runs, the functions you’ll use every day, how to configure it, and how to move your v3 scripts across without getting burned. Everything here was checked against the 4.1.8 release, the current stable build.</p>
+    <p>Before we start, credit where it’s due. PSADT is free, open-source software built by the PSAppDeployToolkit Team: Sean Lillis, Dan Cunningham, Muhammad Mashwani, Mitch Richters and Dan Gough, along with a lot of community contributors. This session is independent training. The toolkit is their work.</p>
+  </aside>
+</section>
+
+<section class="slide" id="agenda" data-module="Welcome" data-title="Agenda">
+  <p class="kicker">Agenda</p>
+  <h2>Six modules, three knowledge checks</h2>
+  <ol class="agenda-list" data-agenda></ol>
+  <p class="note">Playback pauses at each knowledge check until you answer.</p>
+  <aside class="narration">
+    <p>Here’s the plan. Module one covers the foundations: what changed in v4 and how a package is laid out. Module two walks through the deployment script and the session lifecycle. Module three is the function toolbox. Module four covers configuration, strings and extensions. Module five is migrating from v3, including the gotchas. We’ll finish with shipping to Intune or ConfigMgr. There are three quick knowledge checks along the way, and playback waits for your answer.</p>
+  </aside>
+</section>
+
+<!-- ============================================================
+     MODULE 1: FOUNDATIONS
+     ============================================================ -->
+<section class="slide" id="v4-at-a-glance" data-module="Foundations" data-title="v4 at a glance">
+  <p class="kicker">Module 1 · Foundations</p>
+  <h2>What changed in v4</h2>
+  <div class="grid-3">
+    <div class="card"><h3>A real PowerShell module</h3><p><code>PSAppDeployToolkit</code> on the PowerShell Gallery. 134 public functions instead of one huge dot-sourced script.</p></div>
+    <div class="card"><h3>Compiled engine</h3><p>Sessions, logging, dialogs and process handling run in C# underneath the PowerShell layer.</p></div>
+    <div class="card"><h3>One naming scheme</h3><p>Every public function is <code>Verb-ADTNoun</code>, so it’s predictable and easy to discover.</p></div>
+    <div class="card"><h3>Fluent UI by default</h3><p>Modern dialogs with light and dark modes. Set <code>DialogStyle = 'Classic'</code> for the v3 look.</p></div>
+    <div class="card accent"><h3>No more ServiceUI <span class="tag">4.1</span></h3><p>Dialogs from SYSTEM deployments run in the user’s own session through a separate client process.</p></div>
+    <div class="card"><h3>v3 compatibility layer</h3><p>Existing <code>Deploy-Application.ps1</code> scripts can run on the v4 engine while you migrate.</p></div>
+  </div>
+  <aside class="narration">
+    <p>So what actually changed? In v3, the toolkit was a big script you dot-sourced into every package. In v4, it’s a proper PowerShell module called PSAppDeployToolkit, published to the PowerShell Gallery, with a compiled engine underneath for sessions, logging, dialogs and process handling. Every public function now follows one pattern: verb, dash, ADT, noun. The dialogs default to a modern Fluent interface, and the classic look is still there if you want it. Version 4.1 added the big one: you no longer need ServiceUI to show dialogs from a System deployment. And there’s a v3 compatibility layer, so old scripts can run while you migrate.</p>
+  </aside>
+</section>
+
+<section class="slide" id="get-the-toolkit" data-module="Foundations" data-title="Getting the toolkit">
+  <p class="kicker">Module 1 · Foundations</p>
+  <h2>Getting the toolkit</h2>
+  <pre class="code"><code data-lang="ps"># Install the module on your packaging workstation
+Install-Module -Name PSAppDeployToolkit -Scope CurrentUser
+
+# Scaffold a new package folder
+New-ADTTemplate -Destination 'C:\Packages' -Name 'Contoso_Widget_5.2'
+
+# v3 layout on the v4 engine, for migrations
+New-ADTTemplate -Destination 'C:\Packages' -Name 'Legacy_App' -Version 3</code></pre>
+  <div class="grid-3 row-gap">
+    <div class="callout"><h3>Self-contained packages</h3><p>The template bundles its own copy of the module. Target devices don’t need anything installed.</p></div>
+    <div class="card"><h3>Requirements</h3><p>Windows 10 / 11 · Windows PowerShell 5.1 or later · .NET Framework 4.7.2 or later</p></div>
+    <div class="card"><h3>Prefer zips?</h3><p>The same templates ship with every release on GitHub.</p></div>
+  </div>
+  <aside class="narration">
+    <p>Getting started takes two commands. Install the module from the PowerShell Gallery on your packaging workstation, then run New-ADTTemplate to scaffold a package folder. The template copies in everything the package needs, including its own copy of the module, so target devices don’t need anything installed. If you’d rather not use the Gallery, the same templates are attached to every release on GitHub. Requirements are light: Windows 10 or 11, Windows PowerShell 5.1 or later, and .NET Framework 4.7.2 or later.</p>
+  </aside>
+</section>
+
+<section class="slide" id="anatomy" data-module="Foundations" data-title="Anatomy of a package">
+  <p class="kicker">Module 1 · Foundations</p>
+  <h2>Anatomy of a v4 package</h2>
+<pre class="tree">Contoso_Widget_5.2\
+├── <b>Invoke-AppDeployToolkit.exe</b>      <i>launcher</i>
+├── <b>Invoke-AppDeployToolkit.ps1</b>      <i>your deployment script</i>
+├── Files\                           <i>installers · $adtSession.DirFiles</i>
+├── SupportFiles\                    <i>extras · $adtSession.DirSupportFiles</i>
+├── Assets\                          <i>logo, dark logo, banner</i>
+├── Config\config.psd1               <i>toolkit settings</i>
+├── Strings\strings.psd1             <i>dialog text, 27 languages</i>
+├── <u>PSAppDeployToolkit\</u>              <i>the module: signed, read-only</i>
+└── PSAppDeployToolkit.Extensions\   <i>your custom functions</i></pre>
+  <div class="cols row-gap">
+    <div class="callout warn"><h3>Don’t edit the module folder</h3><p>It’s digitally signed and the template marks it read-only. Changes inside it are unsupported.</p></div>
+    <div class="callout"><h3>Customise the copies</h3><p>Edit <code>Config</code>, <code>Strings</code> and <code>Assets</code> in your package. Put your own code in <code>Extensions</code>.</p></div>
+  </div>
+  <aside class="narration">
+    <p>Here’s what New-ADTTemplate gives you. Two launchers at the top: the exe and the script. The script is where your work goes. Installers go in Files, and anything extra, like config files or licence keys, goes in SupportFiles. Assets holds the logos and banner used in dialogs. Config holds config.psd1 for toolkit settings, and Strings holds the dialog text in twenty-seven languages. Then there’s the PSAppDeployToolkit folder itself. That’s the module, and it’s digitally signed. Don’t edit anything inside it. Customise the copies of Config, Strings and Assets in your package instead. If you need your own functions, the Extensions module is where they live.</p>
+  </aside>
+</section>
+
+<!-- ============================================================
+     MODULE 2: SCRIPT & SESSION LIFECYCLE
+     ============================================================ -->
+<section class="slide" id="script-map" data-module="Script &amp; session lifecycle" data-title="The deployment script">
+  <p class="kicker">Module 2 · Script &amp; session lifecycle</p>
+  <h2>Invoke-AppDeployToolkit.ps1, top to bottom</h2>
+  <ol class="regions">
+    <li><span class="region-name"><code>param()</code></span><span class="region-desc">DeploymentType, DeployMode, SuppressRebootPassThru, TerminalServerMode, DisableLogging</span><span class="pill">Leave</span></li>
+    <li class="edit"><span class="region-name"><code>$adtSession = @{ }</code></span><span class="region-desc">Your app’s identity: vendor, name, version, exit codes, processes to close</span><span class="pill">You edit</span></li>
+    <li class="edit"><span class="region-name"><code>Install-ADTDeployment</code><br><code>Uninstall-ADTDeployment</code><br><code>Repair-ADTDeployment</code></span><span class="region-desc">Your code, in Pre, Main and Post phases</span><span class="pill">You edit</span></li>
+    <li><span class="region-name">Initialization</span><span class="region-desc">Imports the module, then <code>Open-ADTSession</code></span><span class="pill">Leave</span></li>
+    <li><span class="region-name">Invocation</span><span class="region-desc">Loads extensions, runs the deployment function, then <code>Close-ADTSession</code></span><span class="pill">Leave</span></li>
+  </ol>
+  <aside class="narration">
+    <p>Open Invoke-AppDeployToolkit.ps1 and you’ll find five regions. At the top is a parameter block: deployment type, deploy mode, and a few switches. Next is the adtSession hashtable, which describes your app. Then come three functions: Install, Uninstall and Repair. Each one is split into pre, main and post phases, and that’s where your code goes. At the bottom are Initialization, which imports the module and opens a session, and Invocation, which runs the right function and closes the session. As a rule, you edit the hashtable and the three functions. Leave the bottom two regions alone.</p>
+  </aside>
+</section>
+
+<section class="slide" id="adtsession" data-module="Script &amp; session lifecycle" data-title="The adtSession hashtable">
+  <p class="kicker">Module 2 · Script &amp; session lifecycle</p>
+  <h2>The <code>$adtSession</code> hashtable</h2>
+  <div class="cols cols-wide-left">
+    <pre class="code code-tight"><code data-lang="ps">$adtSession = @{
+    AppVendor = 'Contoso'
+    AppName = 'Widget'
+    AppVersion = '5.2.0'
+    AppArch = 'x64'
+    AppLang = 'EN'
+    AppRevision = '01'
+    AppSuccessExitCodes = @(0)
+    AppRebootExitCodes = @(1641, 3010)
+    AppProcessesToClose = @(
+        @{ Name = 'widget'; Description = 'Contoso Widget' }
+    )
+    AppScriptVersion = '1.0.0'
+    AppScriptDate = '2026-10-07'
+    AppScriptAuthor = 'Packaging Team'
+    RequireAdmin = $true
+}</code></pre>
+    <div class="stack">
+      <div class="callout"><h3>Builds the install name</h3><p>Vendor, name, version, arch, lang and revision combine into <code>InstallName</code>, which also names the log file.</p></div>
+      <div class="callout"><h3>Define processes once <span class="tag">4.1</span></h3><p><code>AppProcessesToClose</code> is reused by Install, Uninstall and Repair.</p></div>
+      <div class="callout ok"><h3>Zero-Config MSI</h3><p>Leave <code>AppName</code> empty and drop one MSI (plus optional MST/MSP) in <code>Files</code>. It installs with no code.</p></div>
+    </div>
+  </div>
+  <aside class="narration">
+    <p>The adtSession hashtable is your package’s identity card. Vendor, name, version, architecture, language and revision combine into the install name, which also names the log file. The exit code lists tell the toolkit which installer codes mean success and which mean a reboot is needed. AppProcessesToClose, new in 4.1, lists the processes your app runs. Install, Uninstall and Repair all reuse it, so you define it once. One neat trick: if you leave AppName empty, you get Zero-Config MSI. Drop a single MSI into Files, optionally with a transform, and the toolkit installs it with no code at all. Set AppName and that behaviour switches off.</p>
+  </aside>
+</section>
+
+<section class="slide" id="lifecycle" data-module="Script &amp; session lifecycle" data-title="The session lifecycle">
+  <p class="kicker">Module 2 · Script &amp; session lifecycle</p>
+  <h2>The session lifecycle</h2>
+  <ol class="flow">
+    <li><span class="step">1</span><code>Import-Module</code><p>Bundled copy first, checked by GUID and minimum version</p></li>
+    <li><span class="step">2</span><code>Open-ADTSession</code><p>Logging starts, deploy mode is resolved, the hashtable becomes a live session</p></li>
+    <li><span class="step">3</span><code>Import extensions</code><p>Any <code>PSAppDeployToolkit.*</code> folder next to the script</p></li>
+    <li class="hl"><span class="step">4</span><code>Install-ADTDeployment</code><p>Or Uninstall / Repair, matching the deployment type. Runs Pre, then Main, then Post</p></li>
+    <li><span class="step">5</span><code>Close-ADTSession</code><p>Summary logged, exit code handed back to Intune or ConfigMgr</p></li>
+  </ol>
+  <div class="fail-row">
+    <div class="fail"><b>60008</b><span>Module failed to import or the session failed to open (steps 1–2)</span></div>
+    <div class="fail"><b>60001</b><span>Unhandled error in your deployment: logged at severity 3, then <code>Close-ADTSession -ExitCode 60001</code></span></div>
+  </div>
+  <aside class="narration">
+    <p>Here’s what happens when the script runs. First it imports the module, preferring the copy bundled in the package and checking its GUID and minimum version. Then Open-ADTSession starts logging, works out the deploy mode, and swaps your hashtable for a live session object. Any extension modules load next. Then the script calls the function matching the deployment type, so Install-ADTDeployment for an install, which runs pre, main and post. Finally, Close-ADTSession writes the summary and hands the exit code back to Intune or ConfigMgr. Two failure paths are worth memorising. If the module can’t load or the session won’t open, you get exit code 60008. If anything throws inside your deployment, the catch block logs it and exits with 60001.</p>
+  </aside>
+</section>
+
+<section class="slide" id="phases" data-module="Script &amp; session lifecycle" data-title="Pre, main, post">
+  <p class="kicker">Module 2 · Script &amp; session lifecycle</p>
+  <h2>Pre, main, post: a real install</h2>
+  <pre class="code code-tight"><code data-lang="ps">function Install-ADTDeployment
+{
+    ## MARK: Pre-Install
+    $adtSession.InstallPhase = "Pre-$($adtSession.DeploymentType)"
+    Show-ADTInstallationWelcome -CloseProcesses $adtSession.AppProcessesToClose `
+        -AllowDefer -DeferTimes 3 -CheckDiskSpace -PersistPrompt
+    Show-ADTInstallationProgress
+    Uninstall-ADTApplication -Name 'Contoso Widget' -ApplicationType EXE -ArgumentList '/S'
+
+    ## MARK: Install
+    $adtSession.InstallPhase = $adtSession.DeploymentType
+    Start-ADTMsiProcess -Action Install -FilePath 'ContosoWidget-5.2.0-x64.msi' -Transforms 'Contoso.mst'
+
+    ## MARK: Post-Install
+    $adtSession.InstallPhase = "Post-$($adtSession.DeploymentType)"
+    Set-ADTRegistryKey -LiteralPath 'HKLM\SOFTWARE\Policies\Contoso\Widget' `
+        -Name 'DisableAutoUpdate' -Value 1 -Type DWord
+}</code></pre>
+  <aside class="narration">
+    <p>Here’s a realistic install. In the pre-install phase, we show the welcome dialog. It asks the user to close Widget, allows three deferrals, checks disk space and keeps the prompt on screen. Then we show the progress dialog and remove an old EXE-based version. In the install phase, one line installs the MSI with a transform. A bare file name resolves against the Files folder, and the toolkit writes a verbose MSI log for you. Post-install, we set a policy key to turn off auto-update. Notice the InstallPhase lines. They don’t change behaviour, but they tag every log entry, so you can see exactly which phase failed.</p>
+  </aside>
+</section>
+
+<section class="slide" id="run-modes" data-module="Script &amp; session lifecycle" data-title="Deployment types and deploy modes">
+  <p class="kicker">Module 2 · Script &amp; session lifecycle</p>
+  <h2>Running it: types and modes</h2>
+  <pre class="code code-cmd"><code data-lang="ps">Invoke-AppDeployToolkit.exe -DeploymentType Install
+Invoke-AppDeployToolkit.exe -DeploymentType Uninstall -DeployMode Silent
+Invoke-AppDeployToolkit.exe -DeploymentType Install /Debug    # show console output
+Invoke-AppDeployToolkit.exe -DeploymentType Install /Core     # run on PowerShell 7
+powershell.exe -ExecutionPolicy Bypass -File .\Invoke-AppDeployToolkit.ps1 -DeploymentType Repair</code></pre>
+  <div class="cols">
+    <table class="t">
+      <tr><th>DeployMode</th><th>Behaviour</th></tr>
+      <tr><td><code>Auto</code> <span class="tag">default</span></td><td>Decides for you (right)</td></tr>
+      <tr><td><code>Interactive</code></td><td>Always shows dialogs</td></tr>
+      <tr><td><code>NonInteractive</code></td><td>Progress only, no prompts</td></tr>
+      <tr><td><code>Silent</code></td><td>No dialogs at all</td></tr>
+    </table>
+    <div class="callout warn"><h3>Auto switches to Silent when…</h3>
+      <ul><li>the device is in OOBE or the Autopilot ESP</li><li>no user is logged on</li><li><code>AppProcessesToClose</code> is set but none are running</li></ul>
+      <p>Otherwise it runs Interactive.</p>
+    </div>
+  </div>
+  <aside class="narration">
+    <p>Deployment type picks the function: Install, Uninstall or Repair, with Install as the default. Deploy mode controls the dialogs. Interactive always shows them, NonInteractive shows progress without asking anything, and Silent shows nothing at all. The default in 4.1 is Auto, and it’s worth understanding. Auto goes silent if the device is still in the out-of-box experience or Autopilot’s Enrollment Status Page, if nobody is logged on, or if you listed processes to close and none of them are running. Otherwise it’s interactive. If you need the dialogs regardless, pass DeployMode Interactive. For troubleshooting, the exe takes /Debug to show console output, and /Core to run on PowerShell 7.</p>
+  </aside>
+</section>
+
+<section class="slide" id="exit-codes" data-module="Script &amp; session lifecycle" data-title="Exit codes">
+  <p class="kicker">Module 2 · Script &amp; session lifecycle</p>
+  <h2>Exit codes you’ll see</h2>
+  <div class="cols">
+    <table class="t t-codes">
+      <tr><th>Code</th><th>Meaning</th></tr>
+      <tr><td><b>0</b></td><td>Success</td></tr>
+      <tr><td><b>3010</b></td><td>Success, reboot required. Passed through by default in 4.1; mask with <code>-SuppressRebootPassThru</code></td></tr>
+      <tr><td><b>1641</b></td><td>Installer started a reboot</td></tr>
+      <tr><td><b>1602</b></td><td>User deferred (<code>UI.DeferExitCode</code>). 4.0 used 60012</td></tr>
+      <tr><td><b>1618</b></td><td>Dialog timed out (<code>UI.DefaultExitCode</code>)</td></tr>
+    </table>
+    <table class="t t-codes">
+      <tr><th>Code</th><th>Meaning</th></tr>
+      <tr><td><b>60001</b></td><td>Unhandled error in your deployment script</td></tr>
+      <tr><td><b>60008</b></td><td>Module failed to import or session failed to open</td></tr>
+      <tr><td><b>60000–68999</b></td><td>Reserved for the toolkit</td></tr>
+      <tr><td><b>69000–69999</b></td><td>Your custom codes in the script</td></tr>
+      <tr><td><b>70000–79999</b></td><td>Your custom codes in extensions</td></tr>
+    </table>
+  </div>
+  <aside class="narration">
+    <p>Exit codes are how your deployment tool knows what happened, so learn these. Zero is success. 3010 means success, but a reboot is needed. In 4.1 the toolkit passes it through by default, and the SuppressRebootPassThru switch masks it to zero. 1602 means the user deferred. The team chose it because Intune and ConfigMgr already understand it as “user cancelled”. Older 4.0 packages used 60012. 1618 means a dialog timed out. In the toolkit’s own range, 60001 is an unhandled error in your script, and 60008 means the module never loaded. If you need custom codes, use 69000 to 69999 in the script, or 70000 and up in extensions.</p>
+  </aside>
+</section>
+
+<section class="slide poll" id="check-1" data-module="Script &amp; session lifecycle" data-title="Knowledge check 1" data-answer="1">
+  <p class="kicker">Knowledge check 1 of 3</p>
+  <h2 class="poll-q">Your package sets <code>AppProcessesToClose = @('widget')</code>. It runs with the default deploy mode, a user is logged on, and <code>widget.exe</code> isn’t running. What does the user see?</h2>
+  <ol class="options">
+    <li>The welcome dialog, asking them to close Widget</li>
+    <li>Nothing: Auto mode switches to Silent</li>
+    <li>An error dialog, then exit code 60001</li>
+    <li>A deferral prompt with three deferrals</li>
+  </ol>
+  <aside class="narration">
+    <p>Knowledge check. Your package lists widget in AppProcessesToClose. It runs with the default deploy mode, a user is logged on, and Widget isn’t running. What does the user see? Pick an answer to continue.</p>
+  </aside>
+  <aside class="explanation">
+    <p>The answer is B: nothing. In Auto mode, if you listed processes to close and none of them are running, there’s nothing to ask the user, so the toolkit switches to Silent. If you always want dialogs, set DeployMode to Interactive, or add the NoProcessDetection switch when the session opens.</p>
+  </aside>
+</section>
+
+<!-- ============================================================
+     MODULE 3: THE ADT FUNCTION SET
+     ============================================================ -->
+<section class="slide" id="discover" data-module="The ADT function set" data-title="Finding your way around">
+  <p class="kicker">Module 3 · The ADT function set</p>
+  <h2>134 functions, one pattern</h2>
+  <pre class="code code-cmd"><code data-lang="ps">Get-Command -Module PSAppDeployToolkit              # every public function
+Get-Command -Module PSAppDeployToolkit -Verb Show   # just the dialogs
+Get-Help Start-ADTMsiProcess -Full                  # parameters + examples
+Show-ADTHelpConsole                                 # searchable help browser</code></pre>
+  <ul class="verbs verbs-grid">
+      <li><code>Show-</code><span>dialogs and notifications</span></li>
+      <li><code>Start-</code><span>run installers and processes</span></li>
+      <li><code>Get- Set- Remove-</code><span>read and change state</span></li>
+      <li><code>Test-</code><span>check conditions: battery, PowerPoint, ESP…</span></li>
+      <li><code>Invoke-</code><span>bulk and wrapped actions</span></li>
+      <li><code>Copy- New-</code><span>files, folders, shortcuts</span></li>
+  </ul>
+  <aside class="narration">
+    <p>The module exports 134 public functions, and you don’t need to memorise them. They all follow verb, dash, ADT, noun, so the verb tells you the family. Show is for dialogs. Start runs processes. Get, Set and Remove read and change state. Test checks conditions, like whether the device is on battery or PowerPoint is presenting. Get-Command filters by verb, Get-Help with Full gives you every parameter and example, and Show-ADTHelpConsole opens a searchable help browser. Let’s walk through the families you’ll use most.</p>
+  </aside>
+</section>
+
+<section class="slide" id="show-family" data-module="The ADT function set" data-title="The Show- family">
+  <p class="kicker">Module 3 · The ADT function set</p>
+  <h2>User experience: the <code>Show-</code> family</h2>
+  <div class="cols cols-wide-left">
+      <table class="t t-fn">
+        <tr><td><code>Show-ADTInstallationWelcome</code></td><td>Close apps, deferrals, disk space check, block relaunch</td></tr>
+        <tr><td><code>Show-ADTInstallationProgress</code></td><td>“Installing” window with live status text</td></tr>
+        <tr><td><code>Show-ADTInstallationPrompt</code></td><td>Message with buttons; text input via <code>-RequestInput</code> <span class="tag">4.1</span></td></tr>
+        <tr><td><code>Show-ADTInstallationRestartPrompt</code></td><td>Reboot countdown</td></tr>
+        <tr><td><code>Show-ADTDialogBox</code></td><td>Simple message box</td></tr>
+        <tr><td><code>Show-ADTBalloonTip</code></td><td>Tray notification</td></tr>
+      </table>
+    <div class="callout accent-strong"><h3>4.1: drop ServiceUI</h3><p>Running as SYSTEM, the toolkit shows dialogs through a separate client process in the user’s session. No UI ever runs in the SYSTEM context.</p><p>The PSADT team strongly advises removing ServiceUI: it manipulates security tokens in ways that can be abused.</p></div>
+  </div>
+  <pre class="code code-cmd row-gap"><code data-lang="ps">Show-ADTInstallationWelcome -CloseProcesses $adtSession.AppProcessesToClose -BlockExecution
+Show-ADTInstallationProgress -StatusMessage 'Migrating your settings...'
+Show-ADTInstallationRestartPrompt -CountdownSeconds 600</code></pre>
+  <aside class="narration">
+    <p>The Show family is the user experience. Show-ADTInstallationWelcome is the workhorse. It asks users to close apps, offers deferrals, checks disk space, and with BlockExecution it stops them relaunching the app mid-install. Show-ADTInstallationProgress puts up the installing window, and you can update its status text as you go. Show-ADTInstallationPrompt shows a message with buttons, and in 4.1 it can collect text input. Show-ADTInstallationRestartPrompt handles reboot countdowns. And here’s the big 4.1 change. When you deploy as System, the toolkit shows dialogs through a separate process in the user’s own session. ServiceUI isn’t needed anymore, and the team strongly recommends dropping it, because it works by manipulating security tokens.</p>
+  </aside>
+</section>
+
+<section class="slide" id="start-family" data-module="The ADT function set" data-title="The Start- family">
+  <p class="kicker">Module 3 · The ADT function set</p>
+  <h2>Running installers: the <code>Start-</code> family</h2>
+  <pre class="code code-tight"><code data-lang="ps"># MSI: a bare file name resolves to the Files folder; a verbose MSI log is written for you
+Start-ADTMsiProcess -Action Install -FilePath 'App.msi' -Transforms 'App.mst' `
+    -AdditionalArgumentList 'ALLUSERS=1'
+Start-ADTMsiProcess -Action Uninstall -ProductCode '{12345678-90AB-CDEF-1234-567890ABCDEF}'
+
+# EXE: declare what success and reboot look like; anything else fails the deployment
+Start-ADTProcess -FilePath 'setup.exe' -ArgumentList '/S' -SuccessExitCodes 0, 2 -RebootExitCodes 3010
+
+# 4.1: installers that hand off and exit early, or hang
+Start-ADTProcess -FilePath 'setup.exe' -ArgumentList '/quiet' -WaitForChildProcesses `
+    -Timeout (New-TimeSpan -Minutes 30)
+
+# Run in the logged-on user's session from a SYSTEM deployment
+Start-ADTProcessAsUser -FilePath "$envProgramFiles\Contoso\Widget\widget.exe" `
+    -ArgumentList '--register-user'</code></pre>
+  <aside class="narration">
+    <p>The Start family runs installers. Start-ADTMsiProcess handles MSI installs, uninstalls, patches and repairs. Give it a bare file name and it looks in your Files folder. It also writes a verbose MSI log next to the toolkit log without you asking. To uninstall by product code, pass ProductCode instead of FilePath. Start-ADTProcess is for everything else. Tell it which exit codes mean success and which mean reboot, and it’ll fail the deployment on anything else. 4.1 added useful switches for awkward installers. WaitForChildProcesses handles setups that hand off and exit early, and Timeout handles setups that hang. When you need something to run as the logged-on user, use Start-ADTProcessAsUser.</p>
+  </aside>
+</section>
+
+<section class="slide" id="find-remove" data-module="The ADT function set" data-title="Finding and removing apps">
+  <p class="kicker">Module 3 · The ADT function set</p>
+  <h2>Finding and removing apps</h2>
+  <pre class="code code-tight"><code data-lang="ps"># Preview first: what would match?
+Get-ADTApplication -Name 'Java' -FilterScript { $_.Publisher -eq 'Oracle Corporation' }
+
+# Then remove with the same filters
+Uninstall-ADTApplication -Name 'Java' -FilterScript { $_.Publisher -eq 'Oracle Corporation' }
+
+# Exact name, EXE uninstaller, silent switch
+Uninstall-ADTApplication -Name 'Contoso Widget' -NameMatch Exact -ApplicationType EXE -ArgumentList '/S'
+
+# Or pipe in results you've already checked
+Get-ADTApplication -ProductCode '{AC76BA86-7AD7-1033-7B44-AC0F074E4100}' |
+    Uninstall-ADTApplication</code></pre>
+  <div class="grid-3 row-gap">
+    <div class="card"><h3><code>-NameMatch</code></h3><p><b>Contains</b> (default) · Exact · Wildcard · Regex</p></div>
+    <div class="card"><h3><code>-ApplicationType</code></h3><p><b>All</b> (default) · MSI · EXE</p></div>
+    <div class="callout warn"><h3>“Contains” is broad</h3><p><code>-Name 'Java'</code> matches more than you think. Tighten it first.</p></div>
+  </div>
+  <aside class="narration">
+    <p>Get-ADTApplication searches the uninstall registry keys and returns rich objects with name, version, publisher, product code and architecture. Uninstall-ADTApplication takes the same filters and removes what matches. MSIs go through msiexec, and EXEs use their registered uninstall string plus any arguments you pass. Name matching is “contains” by default, which is broad. Java matches a lot of things. So tighten it with NameMatch Exact, Wildcard or Regex, filter by application type, or add a FilterScript. Best habit: run Get-ADTApplication with your filters first. It’s a free dry run. When the results look right, pipe them straight in.</p>
+  </aside>
+</section>
+
+<section class="slide" id="files-registry" data-module="The ADT function set" data-title="Files, registry, per-user">
+  <p class="kicker">Module 3 · The ADT function set</p>
+  <h2>Files, registry and per-user settings</h2>
+  <pre class="code code-tight"><code data-lang="ps">Copy-ADTFile -Path "$($adtSession.DirSupportFiles)\widget.config" -Destination "$envProgramData\Contoso\Widget"
+Set-ADTRegistryKey -LiteralPath 'HKLM\SOFTWARE\Contoso\Widget' -Name 'Server' -Value 'widget.contoso.com'
+
+# Every user's HKCU, including the Default User, from a SYSTEM deployment
+Invoke-ADTAllUsersRegistryAction -ScriptBlock {
+    Set-ADTRegistryKey -SID $_.SID -LiteralPath 'HKCU\Software\Contoso\Widget' -Name 'FirstRun' -Value 0 -Type DWord
+}
+
+# The same idea for files, and for settings applied at each user's next logon
+Copy-ADTFileToUserProfiles -Path "$($adtSession.DirSupportFiles)\settings.json" -Destination 'AppData\Roaming\Widget'
+Set-ADTActiveSetup -StubExePath "$envProgramFiles\Contoso\Widget\widget-usersetup.exe"</code></pre>
+  <aside class="narration">
+    <p>Most packages need a few tweaks after install. Copy-ADTFile and Remove-ADTFile handle files, and the session gives you DirFiles and DirSupportFiles, so you never hard-code package paths. Set-ADTRegistryKey writes values, and creates the key if it’s missing. Per-user settings are the classic trap. Your deployment runs as System, so plain HKCU is System’s own hive. Invoke-ADTAllUsersRegistryAction loads every user’s hive, including the Default User, and runs your script block once per profile. Use $_.SID to target each one. For files, Copy-ADTFileToUserProfiles does the same job. And if a setting must apply at each user’s next logon, Set-ADTActiveSetup has you covered.</p>
+  </aside>
+</section>
+
+<section class="slide" id="logging" data-module="The ADT function set" data-title="Logging">
+  <p class="kicker">Module 3 · The ADT function set</p>
+  <h2>Logging</h2>
+  <table class="t t-kv t-kv-wide">
+        <tr><th>Location</th><td><code>C:\Windows\Logs\Software</code> <span class="muted">(or <code>C:\ProgramData\Logs\Software</code> when <code>RequireAdmin = $false</code>)</span></td></tr>
+        <tr><th>File name</th><td><code>{InstallName}_PSAppDeployToolkit_{DeploymentType}.log</code>, with MSI logs alongside</td></tr>
+        <tr><th>Format</th><td>CMTrace by default (<code>Toolkit.LogStyle</code>)</td></tr>
+        <tr><th>Rotation</th><td>10 MB per file, 10 files of history</td></tr>
+  </table>
+  <div class="code-row row-gap">
+      <pre class="code code-cmd"><code data-lang="ps">Write-ADTLogEntry -Message 'Licence applied.'
+Write-ADTLogEntry -Message 'Config missing, using defaults.' -Severity 2
+Write-ADTLogEntry -Message 'Licence step failed.' -Severity 3</code></pre>
+      <ul class="sev sev-stack"><li><b>1</b> information</li><li><b>2</b> warning</li><li><b>3</b> error</li></ul>
+  </div>
+  <aside class="narration">
+    <p>When something breaks, the log is where you’ll look first. By default the toolkit logs to the Logs\Software folder under Windows. The file name is built from the install name and deployment type, so each app and action gets its own log, with MSI logs alongside. The format is CMTrace, so errors and warnings highlight properly in CMTrace or OneTrace. Add your own entries with Write-ADTLogEntry. Severity one is information, two is a warning, and three is an error. Log the decisions your script makes, not just the failures. The technician reading it at two in the morning might be you.</p>
+  </aside>
+</section>
+
+<section class="slide poll" id="check-2" data-module="The ADT function set" data-title="Knowledge check 2" data-answer="2">
+  <p class="kicker">Knowledge check 2 of 3</p>
+  <h2 class="poll-q">Your deployment runs as SYSTEM. You need a registry value in HKCU for <em>every</em> user on the device. Which approach works?</h2>
+  <ol class="options">
+    <li><code>Set-ADTRegistryKey -LiteralPath 'HKCU\Software\Contoso' …</code></li>
+    <li><code>Start-ADTProcessAsUser -FilePath 'reg.exe' -ArgumentList 'add HKCU\Software\Contoso …'</code></li>
+    <li><code>Invoke-ADTAllUsersRegistryAction { Set-ADTRegistryKey -SID $_.SID -LiteralPath 'HKCU\Software\Contoso' … }</code></li>
+    <li>Write it to HKLM instead. Apps check both.</li>
+  </ol>
+  <aside class="narration">
+    <p>Knowledge check two. Your deployment runs as System, and you need a registry value in HKCU for every user on the device. Which approach works? Pick an answer to continue.</p>
+  </aside>
+  <aside class="explanation">
+    <p>The answer is C. As System, plain HKCU writes to System’s own hive. Running reg.exe as the user only reaches whoever is logged on right now. Invoke-ADTAllUsersRegistryAction loads each profile’s hive, including the Default User for future accounts, and passes each profile in as $_. Note that v3’s $UserProfile variable is gone.</p>
+  </aside>
+</section>
+
+<!-- ============================================================
+     MODULE 4: CONFIG, STRINGS & EXTENSIONS
+     ============================================================ -->
+<section class="slide" id="config" data-module="Config, strings &amp; extensions" data-title="config.psd1">
+  <p class="kicker">Module 4 · Config, strings &amp; extensions</p>
+  <h2><code>config.psd1</code>: how the toolkit behaves</h2>
+  <div class="cols cols-wide-left">
+    <table class="t t-config">
+      <tr><th>Setting</th><th>Default</th><th>Why you’d change it</th></tr>
+      <tr><td><code>Toolkit.CompanyName</code></td><td><code>PSAppDeployToolkit</code></td><td>Your org name in dialog subtitles</td></tr>
+      <tr><td><code>Toolkit.LogPath</code></td><td><code>$envWinDir\Logs\Software</code></td><td>Central log location</td></tr>
+      <tr><td><code>Toolkit.LogStyle</code></td><td><code>CMTrace</code></td><td><code>Legacy</code> for plain text</td></tr>
+      <tr><td><code>UI.DialogStyle</code></td><td><code>Fluent</code></td><td><code>Classic</code> for v3-style dialogs</td></tr>
+      <tr><td><code>UI.FluentAccentColor</code></td><td><code>$null</code></td><td>Brand colour, e.g. <code>0xFF0078D7</code></td></tr>
+      <tr><td><code>UI.DefaultTimeout</code></td><td><code>3300</code></td><td>55 min, under Intune’s 60-minute limit</td></tr>
+      <tr><td><code>MSI.InstallParams</code></td><td><code>REBOOT=ReallySuppress /QN</code></td><td>Default msiexec switches</td></tr>
+    </table>
+    <div class="stack">
+      <pre class="code code-cmd"><code data-lang="ps">(Get-ADTConfig).Toolkit.LogPath</code></pre>
+      <div class="callout"><h3>Group Policy <span class="tag">4.1</span></h3><p>The toolkit ships ADMX templates. Policy settings override <code>config.psd1</code> across the organisation.</p></div>
+      <p class="note">Sections: <b>Assets</b> · <b>MSI</b> · <b>Toolkit</b> · <b>UI</b></p>
+    </div>
+  </div>
+  <aside class="narration">
+    <p>Config.psd1 controls how the toolkit behaves, and it’s split into four sections: Assets, MSI, Toolkit and UI. A few settings are worth knowing. CompanyName puts your organisation’s name in dialog subtitles. LogPath and LogStyle control where logs go and what format they use. DialogStyle switches between Fluent and Classic dialogs, and FluentAccentColor sets your brand colour. DefaultTimeout is fifty-five minutes, deliberately, so dialogs time out before Intune’s sixty-minute limit kills the install. Read any value at runtime with Get-ADTConfig. And new in 4.1, the toolkit ships ADMX templates. Group Policy settings override config.psd1, so you can set standards once for the whole organisation.</p>
+  </aside>
+</section>
+
+<section class="slide" id="strings-assets" data-module="Config, strings &amp; extensions" data-title="Strings and assets">
+  <p class="kicker">Module 4 · Config, strings &amp; extensions</p>
+  <h2>Strings and assets: what users see</h2>
+  <div class="cols">
+    <div class="stack">
+      <h3 class="sub"><code>Strings\strings.psd1</code></h3>
+      <ul class="tags">
+        <li>CloseAppsPrompt</li><li>ProgressPrompt</li><li>RestartPrompt</li><li>InstallationPrompt</li><li>BalloonTip</li><li>BlockExecutionText</li><li>DiskSpaceText</li>
+      </ul>
+      <p>Translations live in subfolders like <code>Strings\de\</code> and <code>Strings\fr\</code>: 27 languages in total. The toolkit uses the detected language; force one with <code>UI.LanguageOverride</code>.</p>
+      <div class="callout warn"><h3>Reworded a message?</h3><p>Update every language you actually support, not just English.</p></div>
+    </div>
+    <div class="stack">
+      <h3 class="sub"><code>Assets\</code></h3>
+      <table class="t t-kv">
+        <tr><th><code>Logo</code></th><td>App icon in every dialog</td></tr>
+        <tr><th><code>LogoDark</code></th><td>Separate icon for dark mode</td></tr>
+        <tr><th><code>Banner</code></th><td>Classic dialogs only</td></tr>
+      </table>
+      <p>Point the <code>Assets</code> section of <code>config.psd1</code> at your files and every dialog picks them up.</p>
+    </div>
+  </div>
+  <aside class="narration">
+    <p>Strings.psd1 holds every piece of text users see, grouped by dialog: close apps, progress, restart, installation prompts, balloon tips, blocked apps and disk space. Translations live in language subfolders, and the toolkit picks the detected display language automatically. Use LanguageOverride in config if you need to force one. If you reword a message, update the translations you actually support too. For branding, the Assets folder holds the logo, a separate dark-mode logo, and a banner used by the Classic dialogs. Point the Assets section of config at your files and every dialog picks them up.</p>
+  </aside>
+</section>
+
+<section class="slide" id="extensions" data-module="Config, strings &amp; extensions" data-title="Extensions">
+  <p class="kicker">Module 4 · Config, strings &amp; extensions</p>
+  <h2>Extensions: your own functions, done right</h2>
+  <div class="cols cols-wide-left">
+    <pre class="code code-tight"><code data-lang="ps"># PSAppDeployToolkit.Extensions.psm1
+function Install-ContosoLicense
+{
+    [CmdletBinding()]
+    param
+    (
+        [Parameter(Mandatory = $true)]
+        [System.String]$LicenseKey
+    )
+
+    Write-ADTLogEntry -Message 'Applying Contoso licence.'
+    Set-ADTRegistryKey -LiteralPath 'HKLM\SOFTWARE\Contoso' `
+        -Name 'License' -Value $LicenseKey
+}</code></pre>
+    <ul class="checks">
+      <li>Auto-imported: the template loads any <code>PSAppDeployToolkit.*</code> folder next to the script</li>
+      <li>Lives outside the signed module, so it survives toolkit upgrades</li>
+      <li>Use your own prefix so you never collide with <code>ADT</code> names</li>
+      <li>Log through <code>Write-ADTLogEntry</code></li>
+      <li>Custom exit codes: 70000–79999</li>
+      <li>Replaces v3’s <code>AppDeployToolkitExtensions.ps1</code></li>
+    </ul>
+  </div>
+  <aside class="narration">
+    <p>When you write the same helper twice, it belongs in an extension. The template ships a PSAppDeployToolkit.Extensions module next to the script, and the invocation code automatically imports any folder whose name starts with PSAppDeployToolkit and a dot. So your organisation’s shared functions live there, outside the signed module, and survive toolkit upgrades. Use your own prefix so you never collide with ADT names, log through Write-ADTLogEntry so everything lands in the same log, and keep custom exit codes in the 70000 range. This replaces v3’s AppDeployToolkitExtensions.ps1.</p>
+  </aside>
+</section>
+
+<!-- ============================================================
+     MODULE 5: MIGRATING FROM v3
+     ============================================================ -->
+<section class="slide" id="migration-paths" data-module="Migrating from v3" data-title="Two migration paths">
+  <p class="kicker">Module 5 · Migrating from v3</p>
+  <h2>Two ways to move a v3 package</h2>
+  <div class="cols">
+    <div class="path">
+      <p class="path-label">Path A · Bridge</p>
+      <h3>Compatibility mode</h3>
+      <ol>
+        <li><code>New-ADTTemplate -Version 3</code> creates the v3 layout (<code>Deploy-Application.exe</code> and <code>AppDeployToolkit\</code>) running on the v4 engine</li>
+        <li>Bring your existing <code>Deploy-Application.ps1</code> and <code>Files</code></li>
+        <li>Old function calls go through wrappers that log <em>“has been replaced by [new name]”</em></li>
+        <li>That log is your to-do list</li>
+      </ol>
+    </div>
+    <div class="path path-goal">
+      <p class="path-label">Path B · Destination</p>
+      <h3>Native v4</h3>
+      <ol>
+        <li>Fresh <code>New-ADTTemplate</code></li>
+        <li>Move app details into <code>$adtSession</code></li>
+        <li>Move code into <code>Install</code> / <code>Uninstall</code> / <code>Repair-ADTDeployment</code></li>
+        <li>Rename functions, parameters and variables</li>
+        <li>Test Interactive and Silent, as SYSTEM</li>
+      </ol>
+    </div>
+  </div>
+  <aside class="narration">
+    <p>You’ve got two ways to move v3 packages. Compatibility mode gets you running fast. New-ADTTemplate with Version 3 creates the v3 layout, with the old launcher and an AppDeployToolkit folder, running on the v4 engine. Bring your existing Deploy-Application script, and it mostly works as-is. Every old function call goes through a wrapper that logs a warning naming its replacement. Treat that log as your to-do list. It’s a bridge, not a destination. The real goal is a native v4 package. Start a fresh template, move the app details into the adtSession hashtable, move your code into the three deployment functions, then rename. The next slide shows the renames you’ll hit most.</p>
+  </aside>
+</section>
+
+<section class="slide" id="rename-map" data-module="Migrating from v3" data-title="Function renames">
+  <p class="kicker">Module 5 · Migrating from v3</p>
+  <h2>Function renames you’ll hit most</h2>
+  <div class="cols cols-map">
+    <table class="t t-map">
+      <tr><th>v3</th><th>v4</th></tr>
+      <tr><td><code>Execute-MSI</code></td><td><code>Start-ADTMsiProcess</code></td></tr>
+      <tr><td><code>Execute-Process</code></td><td><code>Start-ADTProcess</code></td></tr>
+      <tr><td><code>Execute-ProcessAsUser</code></td><td><code>Start-ADTProcessAsUser</code></td></tr>
+      <tr><td><code>Execute-MSP</code></td><td><code>Start-ADTMspProcess</code></td></tr>
+      <tr><td><code>Remove-MSIApplications</code></td><td><code>Uninstall-ADTApplication</code></td></tr>
+      <tr><td><code>Get-InstalledApplication</code></td><td><code>Get-ADTApplication</code></td></tr>
+      <tr><td><code>Exit-Script</code></td><td><code>Close-ADTSession</code></td></tr>
+      <tr><td><code>Write-Log</code></td><td><code>Write-ADTLogEntry</code></td></tr>
+    </table>
+    <table class="t t-map">
+      <tr><th>v3</th><th>v4</th></tr>
+      <tr><td><code>Show-InstallationWelcome</code></td><td><code>Show-ADTInstallationWelcome</code></td></tr>
+      <tr><td><code>Show-InstallationProgress</code></td><td><code>Show-ADTInstallationProgress</code></td></tr>
+      <tr><td><code>Invoke-HKCURegistrySettingsForAllUsers</code></td><td><code>Invoke-ADTAllUsersRegistryAction</code></td></tr>
+      <tr><td><code>Set-RegistryKey</code></td><td><code>Set-ADTRegistryKey</code></td></tr>
+      <tr><td><code>Copy-File</code></td><td><code>Copy-ADTFile</code></td></tr>
+      <tr><td><code>Resolve-Error</code></td><td><code>Resolve-ADTErrorRecord</code></td></tr>
+      <tr><td><code>Get-HardwarePlatform</code></td><td><code>$envHardwareType</code></td></tr>
+      <tr class="gone"><td><code>Set-PinnedApplication</code></td><td>Removed: no longer works on Windows 10 1809+</td></tr>
+    </table>
+  </div>
+  <aside class="narration">
+    <p>Most renames follow one rule: add ADT after the dash. Write-Log becomes Write-ADTLogEntry, and Show-InstallationWelcome becomes Show-ADTInstallationWelcome. The Execute family became the Start family, so Execute-MSI is now Start-ADTMsiProcess and Execute-Process is Start-ADTProcess. A few changed more than that. Exit-Script is now Close-ADTSession, Remove-MSIApplications is Uninstall-ADTApplication, and Get-InstalledApplication is Get-ADTApplication. Set-PinnedApplication is gone completely, because Windows stopped supporting what it did.</p>
+  </aside>
+</section>
+
+<section class="slide" id="variables-params" data-module="Migrating from v3" data-title="Variables and parameters">
+  <p class="kicker">Module 5 · Migrating from v3</p>
+  <h2>Variables and parameters changed too</h2>
+  <div class="cols">
+    <table class="t t-map">
+      <tr><th>v3 variable</th><th>v4</th></tr>
+      <tr><td><code>$dirFiles</code></td><td><code>$adtSession.DirFiles</code></td></tr>
+      <tr><td><code>$dirSupportFiles</code></td><td><code>$adtSession.DirSupportFiles</code></td></tr>
+      <tr><td><code>$appName</code>, <code>$appVersion</code>…</td><td><code>$adtSession.AppName</code>…</td></tr>
+      <tr><td><code>$installPhase</code></td><td><code>$adtSession.InstallPhase</code></td></tr>
+      <tr><td><code>$deploymentType</code></td><td><code>$adtSession.DeploymentType</code></td></tr>
+      <tr><td><code>$UserProfile</code></td><td><code>$_</code> (in all-users actions)</td></tr>
+    </table>
+    <table class="t t-map">
+      <tr><th>v3 parameter</th><th>v4</th></tr>
+      <tr><td><code>-Path</code></td><td><code>-FilePath</code></td></tr>
+      <tr><td><code>-Parameters</code></td><td><code>-ArgumentList</code></td></tr>
+      <tr><td><code>-AddParameters</code></td><td><code>-AdditionalArgumentList</code></td></tr>
+      <tr><td><code>-CloseApps 'excel,winword'</code></td><td><code>-CloseProcesses 'excel','winword'</code></td></tr>
+      <tr><td><code>-ContinueOnError $true</code></td><td><code>-ErrorAction SilentlyContinue</code></td></tr>
+    </table>
+  </div>
+  <aside class="narration">
+    <p>Variables changed too. The loose script variables from v3 now live on the session object. So dirFiles becomes adtSession.DirFiles, and the same goes for the app details, InstallPhase, DeploymentType and DeployMode. Parameters were renamed to match PowerShell conventions. Path is now FilePath, Parameters is ArgumentList, and AddParameters is AdditionalArgumentList. CloseApps, which took one comma-separated string, is now CloseProcesses, which takes a proper array. That array can include hashtables with friendly descriptions. And ContinueOnError is gone. v4 uses standard PowerShell error handling, which brings us to the first gotcha.</p>
+  </aside>
+</section>
+
+<section class="slide" id="gotchas" data-module="Migrating from v3" data-title="Gotchas">
+  <p class="kicker">Module 5 · Migrating from v3</p>
+  <h2>Six gotchas that bite v3 veterans</h2>
+  <div class="grid-3 grid-tight">
+    <div class="card"><span class="num">1</span><h3>Errors stop the script</h3><p>The template sets <code>$ErrorActionPreference = 'Stop'</code> and strict mode. A failure v3 logged and skipped now ends in 60001.</p></div>
+    <div class="card"><span class="num">2</span><h3>Auto can go silent</h3><p>Listed processes not running means no dialogs. Use <code>-DeployMode Interactive</code> when you need them.</p></div>
+    <div class="card"><span class="num">3</span><h3>Drop ServiceUI</h3><p>4.1 shows UI from SYSTEM natively. ConfigMgr no longer needs “Allow users to interact”.</p></div>
+    <div class="card"><span class="num">4</span><h3>Exit codes moved</h3><p>Deferral is 1602 (4.0 used 60012). 3010 passes through by default. Check your reporting.</p></div>
+    <div class="card"><span class="num">5</span><h3>Quieter by default</h3><p>Interactive msiexec is now <code>/QN</code>, not <code>/qb-!</code>. Dialogs don’t minimise windows unless you add <code>-MinimizeWindows</code>.</p></div>
+    <div class="card"><span class="num">6</span><h3>Each package carries its module</h3><p>Updating the Gallery module doesn’t touch packages already built. Upgrade each package’s module folder deliberately.</p></div>
+  </div>
+  <aside class="narration">
+    <p>Six gotchas catch v3 veterans. One: errors stop the script. The template sets the error action preference to Stop and turns on strict mode, so a failure that v3 logged and skipped now fails the deployment with 60001. Decide deliberately where to tolerate errors. Two: Auto mode can go silent, as we saw in the first knowledge check. Three: drop ServiceUI from your Intune commands, because 4.1 doesn’t need it. Four: exit codes moved. Deferral is 1602 now, and 3010 passes through by default, so check your reporting. Five: MSIs run fully quiet by default, and dialogs no longer minimise other windows unless you ask. Six: every package carries its own copy of the module. Updating the module on your workstation doesn’t change packages you’ve already built, so upgrade them deliberately.</p>
+  </aside>
+</section>
+
+<section class="slide poll" id="check-3" data-module="Migrating from v3" data-title="Knowledge check 3" data-answer="3">
+  <p class="kicker">Knowledge check 3 of 3</p>
+  <h2 class="poll-q">What’s the v4 equivalent of this v3 line?<br><code class="poll-code">Execute-Process -Path 'setup.exe' -Parameters '/S' -ContinueOnError $true</code></h2>
+  <ol class="options">
+    <li><code>Start-ADTProcess -Path 'setup.exe' -Parameters '/S' -ContinueOnError $true</code></li>
+    <li><code>Execute-ADTProcess -FilePath 'setup.exe' -ArgumentList '/S'</code></li>
+    <li><code>Start-Process -FilePath 'setup.exe' -ArgumentList '/S'</code></li>
+    <li><code>Start-ADTProcess -FilePath 'setup.exe' -ArgumentList '/S' -ErrorAction SilentlyContinue</code></li>
+  </ol>
+  <aside class="narration">
+    <p>Final knowledge check. A v3 script runs Execute-Process with Path set to setup.exe, Parameters set to /S, and ContinueOnError set to true. Which line is the v4 equivalent? Pick an answer to continue.</p>
+  </aside>
+  <aside class="explanation">
+    <p>The answer is D. Execute became Start, with ADT after the dash. Path became FilePath, and Parameters became ArgumentList. ContinueOnError no longer exists, so you use the standard ErrorAction parameter to tolerate a failure. Option C is plain Start-Process. It would run, but you’d lose the toolkit’s logging and exit code handling.</p>
+  </aside>
+</section>
+
+<!-- ============================================================
+     MODULE 6: SHIP IT
+     ============================================================ -->
+<section class="slide" id="shipping" data-module="Ship it" data-title="Intune and ConfigMgr">
+  <p class="kicker">Module 6 · Ship it</p>
+  <h2>Shipping it: Intune and ConfigMgr</h2>
+  <div class="cols">
+    <div class="path">
+      <p class="path-label">Intune Win32 app</p>
+      <ul>
+        <li>Wrap the whole package folder with the Win32 Content Prep Tool. Setup file: <code>Invoke-AppDeployToolkit.exe</code></li>
+        <li>Install: <code>Invoke-AppDeployToolkit.exe -DeploymentType Install</code></li>
+        <li>Uninstall: <code>Invoke-AppDeployToolkit.exe -DeploymentType Uninstall</code></li>
+        <li>Install behaviour: <b>System</b>. No ServiceUI.</li>
+        <li>Default return codes cover 0, 1641, 3010 and 1618. Add <b>1602</b> so deferrals report the way you want.</li>
+      </ul>
+    </div>
+    <div class="path">
+      <p class="path-label">Configuration Manager</p>
+      <ul>
+        <li>Same command lines for the install and uninstall programs</li>
+        <li>No need to tick “Allow users to view and interact with the program installation”</li>
+      </ul>
+      <p class="path-label path-label-gap">Both</p>
+      <ul>
+        <li>Use a real detection rule: product code, file version or registry</li>
+        <li>Test as SYSTEM before production</li>
+      </ul>
+    </div>
+  </div>
+  <aside class="narration">
+    <p>Shipping it. For Intune, wrap the whole package folder with the Win32 Content Prep Tool, using Invoke-AppDeployToolkit.exe as the setup file. The install command is the exe with DeploymentType Install, and uninstall is the same with Uninstall. Set the install behaviour to System, and leave ServiceUI out. Intune’s default return codes already cover success, the two reboot codes, and 1618 for retry. Add 1602 so deferrals are reported the way you want. For ConfigMgr, use the same command lines, and you no longer need to tick “allow users to interact”. In both cases, use a real detection rule, and test as System before anything goes to production.</p>
+  </aside>
+</section>
+
+<section class="slide" id="checklist" data-module="Ship it" data-title="Technician checklist">
+  <p class="kicker">Module 6 · Ship it</p>
+  <h2>Before a package leaves your hands</h2>
+  <ul class="checklist">
+    <li>Scaffolded with <code>New-ADTTemplate</code>; module folder untouched</li>
+    <li><code>$adtSession</code> filled in, including <code>AppProcessesToClose</code></li>
+    <li>Code in the right phase; <code>InstallPhase</code> lines intact</li>
+    <li>Exit codes declared for every EXE</li>
+    <li>Per-user settings via <code>Invoke-ADTAllUsersRegistryAction</code> or Active Setup</li>
+    <li>Install, Uninstall and Repair tested, Interactive and Silent, as SYSTEM</li>
+    <li>Log read: no surprise warnings, no “has been replaced by” messages</li>
+    <li>No ServiceUI anywhere</li>
+  </ul>
+  <aside class="narration">
+    <p>Here’s the checklist to run before any package leaves your hands. Scaffold with New-ADTTemplate and leave the module alone. Fill in the session details, including processes to close. Put code in the right phase. Declare exit codes for every EXE. Handle per-user settings properly. Test install, uninstall and repair, both interactive and silent, running as System. Then read the log, because a clean exit code with a log full of warnings isn’t a clean package. And make sure ServiceUI is nowhere in sight.</p>
+  </aside>
+</section>
+
+<section class="slide slide-credits" id="credits" data-module="Ship it" data-title="Credit where it’s due">
+  <p class="kicker">Credit where it’s due</p>
+  <h2>PSAppDeployToolkit is built by the PSAppDeployToolkit Team</h2>
+  <div class="team">
+    <div class="person"><span class="initials">SL</span><strong>Sean Lillis</strong></div>
+    <div class="person"><span class="initials">DC</span><strong>Dan Cunningham</strong></div>
+    <div class="person"><span class="initials">MM</span><strong>Muhammad Mashwani</strong></div>
+    <div class="person"><span class="initials">MR</span><strong>Mitch Richters</strong></div>
+    <div class="person"><span class="initials">DG</span><strong>Dan Gough</strong></div>
+  </div>
+  <p class="team-note">…and the community contributors who fix bugs, translate dialog text and answer questions on the forums. Free and open source under the LGPL-3.0, with releases going back to 2013.</p>
+  <div class="links">
+    <div><span class="lbl">Code &amp; issues</span><a href="https://github.com/PSAppDeployToolkit/PSAppDeployToolkit" target="_blank" rel="noopener">github.com/PSAppDeployToolkit/PSAppDeployToolkit</a></div>
+    <div><span class="lbl">Docs</span><a href="https://psappdeploytoolkit.com/docs/introduction" target="_blank" rel="noopener">psappdeploytoolkit.com</a></div>
+    <div><span class="lbl">Community</span><span><a href="https://discourse.psappdeploytoolkit.com/" target="_blank" rel="noopener">Discourse forum</a> · <a href="https://reddit.com/r/psadt" target="_blank" rel="noopener">r/psadt</a> · <a href="https://discord.com/channels/618712310185197588/627204361545842688" target="_blank" rel="noopener">Discord</a></span></div>
+  </div>
+  <p class="disclaimer">This session is independent training material. It isn’t produced or endorsed by the PSAppDeployToolkit Team. Facts were verified against the PSAppDeployToolkit 4.1.8 source.</p>
+  <aside class="narration">
+    <p>Before we wrap up, credit where it’s due. PSAppDeployToolkit is built and maintained by the PSAppDeployToolkit Team. Sean Lillis, Dan Cunningham and Muhammad Mashwani carried it through the v3 years, and Mitch Richters and Dan Gough joined them for the v4 rebuild. A community of contributors writes fixes, translates the dialog text and answers questions on the forums. It’s free, open-source software under the LGPL, with a release history going back to 2013. If it saves you time, and it will, say thanks. Star the repository, report bugs properly, contribute a fix, or help someone else on the forum or Discord.</p>
+  </aside>
+</section>
+
+<section class="slide slide-end" id="complete" data-module="Ship it" data-title="Session complete">
+  <p class="kicker">Session complete</p>
+  <h1>That’s the session.</h1>
+  <ul class="recap">
+    <li>A v4 package is a template plus a bundled, signed module</li>
+    <li>Import → Open-ADTSession → Pre / Main / Post → Close-ADTSession</li>
+    <li><code>Show-</code>, <code>Start-</code>, <code>Get-</code>/<code>Uninstall-</code>, <code>Invoke-</code> do the heavy lifting</li>
+    <li>Config, Strings and Assets are yours; the module isn’t</li>
+    <li>Migrate with compatibility mode, finish in native v4</li>
+  </ul>
+  <div class="end-actions">
+    <button type="button" class="btn btn-primary" data-action="restart">Restart session</button>
+    <a class="btn" href="transcript.md" target="_blank" rel="noopener">Full transcript</a>
+    <a class="btn" href="https://psappdeploytoolkit.com/docs/introduction" target="_blank" rel="noopener">Official docs</a>
+  </div>
+  <aside class="narration">
+    <p>That’s the session. You now know how a v4 package is built, how the session runs from import to exit code, which functions do the heavy lifting, how to configure the toolkit, and how to migrate v3 packages without surprises. The full transcript is linked on this slide, along with the official documentation. Thanks for your time, and happy packaging.</p>
+  </aside>
+</section>
+
+        </div>
+      </div>
+
+      <div class="captions" id="captions" aria-live="polite"><span id="captionText"></span></div>
+
+      <div class="controls">
+        <div class="controls-row">
+          <button type="button" class="ctl" id="btnPrev" aria-label="Previous slide" title="Previous (←)"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5.5v13L9.5 12z"/></svg></button>
+          <button type="button" class="ctl ctl-play" id="btnPlay" aria-label="Play" title="Play / pause (Space)"><svg class="i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><svg class="i-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>
+          <button type="button" class="ctl" id="btnNext" aria-label="Next slide" title="Next (→)"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5.5v13L14.5 12z"/></svg></button>
+          <div class="timeline" id="timeline" role="slider" aria-label="Session progress" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div class="timeline-segs" id="timelineSegs"></div>
+            <div class="timeline-fill" id="timelineFill"></div>
+          </div>
+          <span class="time" id="time">00:00 / 00:00</span>
+          <button type="button" class="ctl ctl-toggle" id="btnCC" aria-pressed="true" aria-label="Captions" title="Captions (C)"><svg viewBox="0 0 24 24"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v10h16V7zm2.5 3.5A1.5 1.5 0 0 1 8 9h2v1.5H8v3h2V15H8a1.5 1.5 0 0 1-1.5-1.5zm7 0A1.5 1.5 0 0 1 15 9h2v1.5h-2v3h2V15h-2a1.5 1.5 0 0 1-1.5-1.5z"/></svg></button>
+          <button type="button" class="ctl ctl-toggle" id="btnVoice" aria-pressed="true" aria-label="Narration voice" title="Narration voice on/off (N)"><svg class="i-vol" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M4 9h4l5-4v14l-5-4H4z"/></svg></button>
+          <button type="button" class="ctl ctl-toggle" id="btnPanel" aria-pressed="true" aria-label="Agenda and transcript panel" title="Panel (T)"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zm2 2v10h9V7zm11 0v10h3V7z"/></svg></button>
+          <button type="button" class="ctl" id="btnFull" aria-label="Full screen" title="Full screen (F)"><svg viewBox="0 0 24 24"><path d="M4 4h6v2H6v4H4zm10 0h6v6h-2V6h-4zM4 14h2v4h4v2H4zm14 0h2v6h-6v-2h4z"/></svg></button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel" id="panel" aria-label="Session panel">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" class="tab" data-tab="agenda" aria-selected="true">Agenda</button>
+        <button type="button" role="tab" class="tab" data-tab="transcript" aria-selected="false">Transcript</button>
+        <button type="button" role="tab" class="tab" data-tab="settings" aria-selected="false">Audio</button>
+      </div>
+      <div class="tab-body" data-body="agenda"><ol class="agenda-panel" id="agendaPanel"></ol></div>
+      <div class="tab-body" data-body="transcript" hidden>
+        <h3 class="transcript-title" id="transcriptTitle"></h3>
+        <div class="transcript" id="transcript"></div>
+        <a class="transcript-link" href="transcript.md" target="_blank" rel="noopener">Open the full transcript ↗</a>
+      </div>
+      <div class="tab-body" data-body="settings" hidden>
+        <label class="field"><span>Voice</span><select id="voiceSelect"></select></label>
+        <label class="field"><span>Speed</span>
+          <select id="rateSelect">
+            <option value="0.9">0.9×</option>
+            <option value="1" selected>1×</option>
+            <option value="1.1">1.1×</option>
+            <option value="1.25">1.25×</option>
+            <option value="1.5">1.5×</option>
+          </select>
+        </label>
+        <button type="button" class="btn btn-small" id="btnTestVoice">Test voice</button>
+        <p class="hint" id="voiceHint">Narration uses your browser’s built-in voices. Edge and Chrome have the most natural ones. If you’re presenting over a remote session, share computer audio as well as your screen.</p>
+        <h4 class="kbd-title">Keyboard</h4>
+        <dl class="kbd">
+          <dt>Space</dt><dd>Play / pause</dd>
+          <dt>← →</dt><dd>Previous / next slide</dd>
+          <dt>C</dt><dd>Captions</dd>
+          <dt>N</dt><dd>Voice on / off</dd>
+          <dt>T</dt><dd>Panel</dd>
+          <dt>F</dt><dd>Full screen</dd>
+        </dl>
+      </div>
+    </aside>
+  </main>
+
+  <div class="lobby" id="lobby" role="dialog" aria-modal="true" aria-labelledby="lobbyTitle">
+    <div class="lobby-card">
+      <div class="lobby-main">
+        <p class="lobby-kicker"><span class="status-dot"></span> On-demand session · Narrated</p>
+        <h1 id="lobbyTitle">PSAppDeployToolkit v4<br><span>Technician Training</span></h1>
+        <p class="lobby-desc">Package anatomy, the session lifecycle, the ADT function set, configuration, and migrating from v3. Built for technicians who package and deploy with PSADT.</p>
+        <ul class="lobby-meta">
+          <li><strong data-total-time>20 min</strong> runtime</li>
+          <li><strong>6</strong> modules</li>
+          <li><strong>3</strong> knowledge checks</li>
+        </ul>
+        <div class="lobby-actions">
+          <button type="button" class="btn btn-primary btn-big" id="btnStart">Start session</button>
+          <button type="button" class="btn btn-big" id="btnResume" hidden>Resume</button>
+        </div>
+        <p class="lobby-hint">Audio narration uses your browser’s built-in voice. Captions are on by default. Presenting remotely? Share computer audio too.</p>
+      </div>
+      <div class="lobby-side">
+        <h2>Agenda</h2>
+        <ol class="lobby-agenda" id="lobbyAgenda"></ol>
+      </div>
+      <p class="lobby-credit">PSAppDeployToolkit © PSAppDeployToolkit Team (Sean Lillis, Dan Cunningham, Muhammad Mashwani, Mitch Richters, Dan Gough) · LGPL-3.0 · Independent training, not affiliated with or endorsed by the team.</p>
+    </div>
+  </div>
+</div>
+
+<script src="assets/player.js"></script>
+</body>
+</html>
