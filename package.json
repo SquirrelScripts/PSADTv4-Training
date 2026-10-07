@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "transcript": "node scripts/build-transcript.mjs",
-    "check": "node scripts/build-transcript.mjs --check && node --check assets/player.js"
+    "check": "node scripts/build-transcript.mjs --check && node --check assets/speech.js && node --check assets/player.js && node --check scripts/render-audio.mjs",
+    "audio": "node scripts/render-audio.mjs"
   }
 }

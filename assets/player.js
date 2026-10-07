@@ -17,6 +17,8 @@
   const STYLES = {
     documentary: { pitch: 0.8, rate: 0.95, sentenceGapMs: 250, slideGapMs: 1300 },
     standard: { pitch: 1, rate: 1, sentenceGapMs: 0, slideGapMs: 900 },
+    // Recorded narration from scripts/render-audio.mjs; pitch and rate only apply to sentences without a recording.
+    studio: { pitch: 0.8, rate: 0.95, sentenceGapMs: 150, slideGapMs: 1100, studio: true },
   };
 
   const $ = (sel, scope = document) => scope.querySelector(sel);
@@ -37,87 +39,9 @@
 
   /* ------------------------------------------------------------------ text */
 
-  const wordCount = (text) => (text.match(/\S+/g) || []).length;
+  const { wordCount, toChunks, speakable } = window.PSADT_SPEECH;
   const sumWords = (chunks, n = chunks.length) => chunks.slice(0, n).reduce((a, c) => a + c.words, 0);
   const msFor = (words, rate) => (words / (WPM * rate)) * 60000;
-
-  // Sentence-sized chunks keep each utterance short, which avoids Chrome cutting off long speech.
-  function splitSentences(text) {
-    const marked = text.replace(/\s+/g, ' ').trim().replace(/([.!?…])\s+(?=["“'(A-Z0-9$/])/g, '$1\u0000');
-    const out = [];
-    for (const part of marked.split('\u0000')) {
-      if (wordCount(part) <= 34) { out.push(part); continue; }
-      const mid = part.length / 2;
-      let best = -1;
-      for (const m of part.matchAll(/[,;:] /g)) {
-        if (best < 0 || Math.abs(m.index - mid) < Math.abs(best - mid)) best = m.index;
-      }
-      if (best > 0) out.push(part.slice(0, best + 1), part.slice(best + 2));
-      else out.push(part);
-    }
-    return out.filter(Boolean);
-  }
-
-  function toChunks(paragraphs) {
-    return paragraphs.flatMap((text, para) =>
-      splitSentences(text).map((sentence) => ({ text: sentence, para, words: wordCount(sentence) })));
-  }
-
-  // Captions show the script as written; the voice gets a pronunciation-friendly version.
-  const LEXICON = [
-    [/PSAppDeployToolkit\.Extensions/g, 'P S App Deploy Toolkit dot Extensions'],
-    [/PSAppDeployToolkit/g, 'P S App Deploy Toolkit'],
-    [/\bPSADT\b/g, 'P S A D T'],
-    [/\badtSession\b/g, 'A D T session'],
-    [/ConfigMgr/g, 'Config Manager'],
-    [/CMTrace/g, 'C M Trace'],
-    [/OneTrace/g, 'One Trace'],
-    [/ServiceUI/g, 'Service U I'],
-    [/\bADMX\b/g, 'A D M X'],
-    [/\bHKCU\b/g, 'H K C U'],
-    [/\bHKLM\b/g, 'H K L M'],
-    [/\bLGPL\b/g, 'L G P L'],
-    [/\bUI\b/g, 'U I'],
-    [/MSIApplications/g, 'M S I Applications'],
-    [/\bMSIs\b/g, 'M S I files'],
-    [/\bEXEs\b/g, 'E X E files'],
-    [/\bMSI\b/g, 'M S I'],
-    [/\bEXE\b/g, 'E X E'],
-    [/msiexec/gi, 'M S I exec'],
-    [/reg\.exe/g, 'reg dot exe'],
-    [/\.psd1\b/g, ' dot P S D 1'],
-    [/\.psm1\b/g, ' dot P S M 1'],
-    [/\.ps1\b/g, ' dot P S 1'],
-    [/\.exe\b/g, ' dot exe'],
-    [/\.msi\b/g, ' dot M S I'],
-    [/\bGitHub\b/g, 'Git Hub'],
-    [/\$_\.SID\b/g, 'dollar underscore dot S I D'],
-    [/\$_/g, 'dollar underscore'],
-    [/\$(\w)/g, 'dollar $1'],
-    [/(^|\s)\/([A-Za-z]+)\b/g, '$1slash $2'],
-    [/\\/g, ', '],
-    [/\b3010\b/g, 'thirty ten'],
-    [/\b1602\b/g, 'sixteen oh two'],
-    [/\b1618\b/g, 'sixteen eighteen'],
-    [/\b1641\b/g, 'sixteen forty-one'],
-    [/\b60001\b/g, 'sixty thousand and one'],
-    [/\b60008\b/g, 'sixty thousand and eight'],
-    [/\b60012\b/g, 'sixty thousand and twelve'],
-    [/\b69000\b/g, 'sixty-nine thousand'],
-    [/\b69999\b/g, 'sixty-nine thousand, nine hundred and ninety-nine'],
-    [/\b70000\b/g, 'seventy thousand'],
-    [/\bv(\d)\b/g, 'version $1'],
-    [/(\d)\.(\d)/g, '$1 point $2'],
-    [/(\d)\.(\d)/g, '$1 point $2'],
-    [/-ADT/g, ' A D T '],
-    [/\bADT\b/g, 'A D T'],
-    [/([a-z])([A-Z])/g, '$1 $2'],
-    [/\bMsi\b/g, 'M S I'],
-    [/\bMsp\b/g, 'M S P'],
-    [/(\w)\.(\w)/g, '$1 dot $2'],
-    [/(\w)-(?=\w)/g, '$1 '],
-  ];
-  const speakable = (text) => LEXICON.reduce((t, [re, sub]) => t.replace(re, sub), text);
 
   const fmt = (ms) => {
     const s = Math.max(0, Math.round(ms / 1000));
@@ -154,6 +78,10 @@
 
   /* ---------------------------------------------------------------- state */
 
+  const savedStyle = store.get('style', null);
+  // Studio needs recordings, which load asynchronously; start on documentary and switch once they arrive.
+  const wantStudio = savedStyle === null || savedStyle === 'studio';
+
   const state = {
     index: 0,
     playing: false,
@@ -163,15 +91,15 @@
     chunkMs: 0,
     gapTimer: 0,
     rate: Number(store.get('rate', 1)) || 1,
-    style: STYLES[store.get('style', 'documentary')] ? store.get('style', 'documentary') : 'documentary',
+    style: STYLES[savedStyle] && savedStyle !== 'studio' ? savedStyle : 'documentary',
     answers: store.get('answers', {}) || {},
     visited: new Set(store.get('visited', []) || []),
   };
 
-  const explSeq = (s) => {
-    const correct = state.answers[s.id] === s.answer;
-    return [{ text: correct ? 'Correct.' : 'Not quite.', para: -1, words: 2 }, ...s.expl];
-  };
+  const CORRECT = { text: 'Correct.', para: -1, words: 1 };
+  const WRONG = { text: 'Not quite.', para: -1, words: 2 };
+  const explSeq = (s) => [state.answers[s.id] === s.answer ? CORRECT : WRONG, ...s.expl];
+  let studioInfo = null;         // set once recorded narration has loaded
   const currentSeq = () => {
     const s = slides[state.index];
     return state.phase === 'explanation' ? explSeq(s) : s.chunks;
@@ -179,14 +107,17 @@
 
   const style = () => STYLES[state.style];
   const speakRate = () => state.rate * style().rate;
-  const voiceOpts = () => ({ rate: speakRate(), pitch: style().pitch, gapMs: style().sentenceGapMs });
+  const voiceOpts = () => ({ rate: speakRate(), pitch: style().pitch, gapMs: style().sentenceGapMs, studio: !!style().studio, speed: state.rate });
 
-  // Estimated time to narrate the first n chunks, including the pause after each sentence.
-  const seqMs = (chunks, n = chunks.length, rate = speakRate()) => msFor(sumWords(chunks, n), rate) + n * style().sentenceGapMs;
+  // A sentence's length: the recording's duration in studio style, otherwise a words-per-minute estimate.
+  // `rate` is the viewer's speed setting; each style applies its own pacing on top.
+  const chunkMs = (c, rate = state.rate) => (style().studio && c.audio ? c.audio.ms / rate : msFor(c.words, rate * style().rate));
+  const seqMs = (chunks, n = chunks.length, rate = state.rate) =>
+    chunks.slice(0, n).reduce((a, c) => a + chunkMs(c, rate), 0) + n * style().sentenceGapMs;
 
-  function slideMs(s, rate = speakRate()) {
+  function slideMs(s, rate = state.rate) {
     let ms = seqMs(s.chunks, s.chunks.length, rate) + style().slideGapMs;
-    if (s.isPoll) ms += msFor(sumWords(s.expl) + 2, rate) + (s.expl.length + 1) * style().sentenceGapMs + POLL_ALLOWANCE_MS;
+    if (s.isPoll) ms += seqMs([WRONG, ...s.expl], undefined, rate) + POLL_ALLOWANCE_MS;
     return ms;
   }
   const totalMs = () => slides.reduce((a, s) => a + slideMs(s), 0);
@@ -244,7 +175,7 @@
     return r;
   }
 
-  const rankVoice = (v) => (state.style === 'documentary' ? rankDocumentary(v) : rankStandard(v));
+  const rankVoice = (v) => (state.style === 'standard' ? rankStandard(v) : rankDocumentary(v));
 
   const narrator = {
     voices: [],
@@ -256,13 +187,17 @@
     timer: 0,
     watchdog: 0,
     utterance: null,
+    audio: null,                // reused for every recorded sentence, so mobile browsers keep it unlocked
+    preloader: null,
 
     get canSpeak() { return !!synth && this.enabled && !this.broken && this.voices.length > 0 && !!this.voice; },
 
-    say(text, { rate = 1, pitch = 1, gapMs = 0 }, done) {
+    say(chunk, { rate = 1, pitch = 1, gapMs = 0, studio = false, speed = 1 }, done) {
       this.stop();
       const token = ++this.token;
-      const est = msFor(wordCount(text), rate);
+      const { text } = chunk;
+      const recorded = studio && chunk.audio;
+      const est = recorded ? chunk.audio.ms / speed : msFor(wordCount(text), rate);
       const finish = () => {
         if (token !== this.token) return;
         clearTimeout(this.watchdog);
@@ -272,8 +207,22 @@
         else done();
       };
 
+      const timed = () => { if (token === this.token) this.timer = setTimeout(finish, est + 300); };
+
+      if (recorded && this.enabled) {
+        const a = this.audio || (this.audio = new Audio());
+        a.onended = finish;
+        a.onerror = timed;
+        a.src = chunk.audio.src;
+        a.defaultPlaybackRate = speed;
+        a.playbackRate = speed;
+        a.play().catch(timed);   // autoplay blocked or file missing: keep going on captions
+        this.watchdog = setTimeout(finish, est * 1.5 + 4000);
+        return;
+      }
+
       if (!this.canSpeak) {
-        this.timer = setTimeout(finish, est + 300);
+        timed();
         return;
       }
 
@@ -304,14 +253,27 @@
       this.watchdog = setTimeout(finish, est * 2.2 + 4000);
     },
 
+    preload(src) {
+      const p = this.preloader || (this.preloader = new Audio());
+      p.preload = 'auto';
+      if (!p.src.endsWith(src)) p.src = src;
+    },
+
     stop() {
       this.token++;
       clearTimeout(this.timer);
       clearTimeout(this.watchdog);
       if (synth && (synth.speaking || synth.pending)) synth.cancel();
+      if (this.audio) {
+        this.audio.onended = null;
+        this.audio.onerror = null;
+        this.audio.pause();
+      }
       this.utterance = null;
     },
   };
+
+  const audible = () => narrator.enabled && ((style().studio && !!studioInfo) || narrator.canSpeak);
 
   function loadVoices() {
     if (!synth) return;
@@ -344,7 +306,7 @@
       let st = 'idle', label = 'Ready';
       if (state.phase === 'done') { st = 'paused'; label = 'Session complete'; }
       else if (state.phase === 'awaiting') { st = 'waiting'; label = 'Waiting for your answer'; }
-      else if (state.playing) { st = 'playing'; label = narrator.canSpeak ? 'Narrating' : 'Captions only'; }
+      else if (state.playing) { st = 'playing'; label = audible() ? 'Narrating' : 'Captions only'; }
       else if (el.lobby.hidden) { st = 'paused'; label = 'Paused'; }
       el.status.dataset.state = st;
       el.statusText.textContent = label;
@@ -550,11 +512,15 @@
     if (state.chunk >= seq.length) { endOfSequence(); return; }
     const c = seq[state.chunk];
     state.chunkStart = performance.now();
-    state.chunkMs = msFor(c.words, speakRate()) + style().sentenceGapMs;
+    state.chunkMs = chunkMs(c) + style().sentenceGapMs;
     ui.caption(c.text);
     ui.transcript();
     ui.status();
-    narrator.say(c.text, voiceOpts(), () => {
+    if (style().studio) {
+      const next = seq[state.chunk + 1] || slides[state.index + 1]?.chunks[0];
+      if (next?.audio) narrator.preload(next.audio.src);
+    }
+    narrator.say(c, voiceOpts(), () => {
       state.chunk += 1;
       speakNext();
     });
@@ -687,17 +653,20 @@
     store.set(`voice-uri:${state.style}`, el.voiceSelect.value);
     restartChunk();
   });
-  el.styleSelect.value = state.style;
-  el.styleSelect.addEventListener('change', () => {
-    state.style = STYLES[el.styleSelect.value] ? el.styleSelect.value : 'documentary';
-    store.set('style', state.style);
+  function setStyle(name, { persist = true } = {}) {
+    state.style = STYLES[name] && (name !== 'studio' || studioInfo) ? name : 'documentary';
+    el.styleSelect.value = state.style;
+    if (persist) store.set('style', state.style);
     loadVoices();          // each style remembers its own voice, or picks its preferred one
     ui.timeline();
     ui.agendas();
     ui.slideChrome();
     restartChunk();
     ui.tick();
-  });
+    ui.status();
+  }
+  el.styleSelect.value = state.style;
+  el.styleSelect.addEventListener('change', () => setStyle(el.styleSelect.value));
 
   el.rateSelect.value = String(state.rate);
   if (el.rateSelect.value !== String(state.rate)) { state.rate = 1; el.rateSelect.value = '1'; }
@@ -711,7 +680,10 @@
   });
   el.testVoice.addEventListener('click', () => {
     if (state.playing) pause();
-    narrator.say('This is how the narration will sound during the session.', voiceOpts(), () => {});
+    const sample = style().studio && slides[0].chunks[0].audio
+      ? slides[0].chunks[0]
+      : { text: 'This is how the narration will sound during the session.', words: 10 };
+    narrator.say(sample, voiceOpts(), () => {});
   });
 
   document.addEventListener('click', (e) => {
@@ -815,6 +787,41 @@
       ui.voiceUnavailable('This browser didn’t provide any speech voices, so the session will run with timed captions. Edge or Chrome on Windows have the best voices.');
     }
   }, 2500);
+
+  /* ------------------------------------------------- recorded narration */
+
+  // scripts/render-audio.mjs writes one clip per sentence plus a manifest. A clip is only used when its
+  // sentence still matches the script, so edited narration falls back to the browser voice until re-rendered.
+  function attachRecordings(manifest) {
+    let matched = 0;
+    const attach = (chunks, recs = []) => chunks.forEach((c, i) => {
+      const r = recs[i];
+      if (r && r.text === c.text && r.file && r.ms > 0) {
+        c.audio = { src: `assets/audio/clips/${r.file}`, ms: r.ms };
+        matched++;
+      }
+    });
+    for (const s of slides) {
+      const m = manifest.slides?.[s.id];
+      attach(s.chunks, m?.chunks);
+      if (s.isPoll) attach(s.expl, m?.expl);
+    }
+    attach([CORRECT], [manifest.common?.correct]);
+    attach([WRONG], [manifest.common?.wrong]);
+    return matched;
+  }
+
+  fetch('assets/audio/manifest.json', { cache: 'no-cache' })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((manifest) => {
+      if (!manifest || !attachRecordings(manifest)) return;
+      studioInfo = { voice: manifest.voice?.name || 'ElevenLabs' };
+      el.styleSelect.prepend(new Option(`Studio voice (${studioInfo.voice})`, 'studio'));
+      el.voiceHint.textContent = `Studio voice plays the recorded narration (${studioInfo.voice}). The browser voice settings only apply to the other styles. Presenting remotely? Share computer audio as well as your screen.`;
+      if (wantStudio) setStyle('studio', { persist: false });
+      else el.styleSelect.value = state.style;
+    })
+    .catch(() => { /* no recordings: browser voices only */ });
 
   // Start position: an explicit #slide link wins, otherwise offer to resume.
   const fromHash = slides.findIndex((s) => `#${s.id}` === location.hash);
