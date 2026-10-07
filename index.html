@@ -782,6 +782,12 @@ function Install-ContosoLicense
         <a class="transcript-link" href="transcript.md" target="_blank" rel="noopener">Open the full transcript ↗</a>
       </div>
       <div class="tab-body" data-body="settings" hidden>
+        <label class="field"><span>Narrator style</span>
+          <select id="styleSelect">
+            <option value="documentary">Documentary narrator</option>
+            <option value="standard">Standard</option>
+          </select>
+        </label>
         <label class="field"><span>Voice</span><select id="voiceSelect"></select></label>
         <label class="field"><span>Speed</span>
           <select id="rateSelect">
@@ -793,7 +799,7 @@ function Install-ContosoLicense
           </select>
         </label>
         <button type="button" class="btn btn-small" id="btnTestVoice">Test voice</button>
-        <p class="hint" id="voiceHint">Narration uses your browser’s built-in voices. Edge and Chrome have the most natural ones. If you’re presenting over a remote session, share computer audio as well as your screen.</p>
+        <p class="hint" id="voiceHint">Narration uses your browser’s built-in voices. Documentary narrator picks the deepest voice available, lowers the pitch and slows the pacing. Edge on Windows has the best voices (try Christopher or Guy); some online voices ignore the pitch setting. Presenting remotely? Share computer audio as well as your screen.</p>
         <h4 class="kbd-title">Keyboard</h4>
         <dl class="kbd">
           <dt>Space</dt><dd>Play / pause</dd>

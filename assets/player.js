@@ -9,10 +9,15 @@
   root.classList.add('js');
 
   const WPM = 165;                  // estimated narration speed at 1x
-  const SLIDE_GAP_MS = 900;         // pause between slides
   const POLL_ALLOWANCE_MS = 10000;  // time budgeted for answering a knowledge check
   const STORE_PREFIX = 'psadt4-training:';
   const CREDIT = 'PSAppDeployToolkit © PSAppDeployToolkit Team · LGPL-3.0';
+
+  // Narrator styles: pitch, pacing and pauses. Documentary reads lower and slower, with room between sentences.
+  const STYLES = {
+    documentary: { pitch: 0.8, rate: 0.95, sentenceGapMs: 250, slideGapMs: 1300 },
+    standard: { pitch: 1, rate: 1, sentenceGapMs: 0, slideGapMs: 900 },
+  };
 
   const $ = (sel, scope = document) => scope.querySelector(sel);
   const $$ = (sel, scope = document) => Array.from(scope.querySelectorAll(sel));
@@ -158,6 +163,7 @@
     chunkMs: 0,
     gapTimer: 0,
     rate: Number(store.get('rate', 1)) || 1,
+    style: STYLES[store.get('style', 'documentary')] ? store.get('style', 'documentary') : 'documentary',
     answers: store.get('answers', {}) || {},
     visited: new Set(store.get('visited', []) || []),
   };
@@ -171,9 +177,16 @@
     return state.phase === 'explanation' ? explSeq(s) : s.chunks;
   };
 
-  function slideMs(s, rate = state.rate) {
-    let ms = msFor(sumWords(s.chunks), rate) + SLIDE_GAP_MS;
-    if (s.isPoll) ms += msFor(sumWords(s.expl) + 2, rate) + POLL_ALLOWANCE_MS;
+  const style = () => STYLES[state.style];
+  const speakRate = () => state.rate * style().rate;
+  const voiceOpts = () => ({ rate: speakRate(), pitch: style().pitch, gapMs: style().sentenceGapMs });
+
+  // Estimated time to narrate the first n chunks, including the pause after each sentence.
+  const seqMs = (chunks, n = chunks.length, rate = speakRate()) => msFor(sumWords(chunks, n), rate) + n * style().sentenceGapMs;
+
+  function slideMs(s, rate = speakRate()) {
+    let ms = seqMs(s.chunks, s.chunks.length, rate) + style().slideGapMs;
+    if (s.isPoll) ms += msFor(sumWords(s.expl) + 2, rate) + (s.expl.length + 1) * style().sentenceGapMs + POLL_ALLOWANCE_MS;
     return ms;
   }
   const totalMs = () => slides.reduce((a, s) => a + slideMs(s), 0);
@@ -181,16 +194,15 @@
 
   function withinSlideMs() {
     const s = slides[state.index];
-    const r = state.rate;
     let t;
     if (state.phase === 'explanation') {
-      t = msFor(sumWords(s.chunks), r) + POLL_ALLOWANCE_MS + msFor(sumWords(explSeq(s), state.chunk), r);
+      t = seqMs(s.chunks) + POLL_ALLOWANCE_MS + seqMs(explSeq(s), state.chunk);
     } else if (state.phase === 'awaiting') {
-      t = msFor(sumWords(s.chunks), r);
+      t = seqMs(s.chunks);
     } else if (state.phase === 'done') {
       return slideMs(s);
     } else {
-      t = msFor(sumWords(s.chunks, state.chunk), r);
+      t = seqMs(s.chunks, state.chunk);
     }
     if (state.playing && state.chunk < currentSeq().length && state.phase !== 'awaiting') {
       t += Math.min(performance.now() - state.chunkStart, state.chunkMs);
@@ -203,7 +215,7 @@
   const synth = 'speechSynthesis' in window ? window.speechSynthesis : null;
   const NOVELTY = /bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|albert|fred|junior|ralph|kathy|grandma|grandpa|rocko|sandy|shelley|reed|eddy|flo\b/i;
 
-  function rankVoice(v) {
+  function rankStandard(v) {
     let r = 0;
     if (/natural|neural/i.test(v.name)) r += 50;
     if (/google/i.test(v.name)) r += 20;
@@ -214,6 +226,25 @@
     if (NOVELTY.test(v.name)) r -= 100;
     return r;
   }
+
+  // Documentary style favours deep male narration voices: Edge's natural voices first, then classic system voices.
+  const DEEP_NATURAL = /\b(christopher|guy|davis|roger|eric|steffan|brian|andrew|tony|jason|ryan|thomas|william|liam)\b/i;
+  const DEEP_CLASSIC = /\b(uk english male|daniel|david|mark|george|james|alex|aaron|arthur|oliver|male)\b/i;
+  const FEMALE = /\b(aria|jenny|ava|emma|michelle|sonia|libby|maisie|natasha|clara|samantha|zira|susan|karen|moira|tessa|serena|allison|zoe|victoria|catherine|hazel|female|google us english)\b/i;
+
+  function rankDocumentary(v) {
+    let r = 0;
+    if (/natural|neural/i.test(v.name)) r += 40;
+    if (DEEP_NATURAL.test(v.name)) r += 35;
+    else if (DEEP_CLASSIC.test(v.name)) r += 25;
+    if (FEMALE.test(v.name)) r -= 30;
+    if (/^en[-_]US/i.test(v.lang)) r += 6;
+    else if (/^en[-_](GB|AU|IE|CA|NZ)/i.test(v.lang)) r += 5;
+    if (NOVELTY.test(v.name)) r -= 100;
+    return r;
+  }
+
+  const rankVoice = (v) => (state.style === 'documentary' ? rankDocumentary(v) : rankStandard(v));
 
   const narrator = {
     voices: [],
@@ -228,7 +259,7 @@
 
     get canSpeak() { return !!synth && this.enabled && !this.broken && this.voices.length > 0 && !!this.voice; },
 
-    say(text, rate, done) {
+    say(text, { rate = 1, pitch = 1, gapMs = 0 }, done) {
       this.stop();
       const token = ++this.token;
       const est = msFor(wordCount(text), rate);
@@ -237,7 +268,8 @@
         clearTimeout(this.watchdog);
         clearTimeout(this.timer);
         this.utterance = null;
-        done();
+        if (gapMs > 0) this.timer = setTimeout(() => { if (token === this.token) done(); }, gapMs);
+        else done();
       };
 
       if (!this.canSpeak) {
@@ -249,6 +281,7 @@
       u.voice = this.voice;
       u.lang = this.voice.lang;
       u.rate = rate;
+      u.pitch = pitch;
       let started = 0;
       u.onstart = () => { started = performance.now(); };
       u.onend = () => {
@@ -285,7 +318,7 @@
     const all = synth.getVoices();
     if (!all.length) return;
     narrator.voices = all;
-    const saved = store.get('voice-uri', null);
+    const saved = store.get(`voice-uri:${state.style}`, null);
     const english = all.filter((v) => /^en([-_]|$)/i.test(v.lang));
     narrator.voice = all.find((v) => v.voiceURI === saved)
       || english.slice().sort((a, b) => rankVoice(b) - rankVoice(a))[0]
@@ -302,7 +335,7 @@
     play: $('#btnPlay'), prev: $('#btnPrev'), next: $('#btnNext'),
     cc: $('#btnCC'), voice: $('#btnVoice'), panelBtn: $('#btnPanel'), full: $('#btnFull'),
     panel: $('#panel'), agenda: $('#agendaPanel'), transcript: $('#transcript'), transcriptTitle: $('#transcriptTitle'),
-    voiceSelect: $('#voiceSelect'), rateSelect: $('#rateSelect'), testVoice: $('#btnTestVoice'), voiceHint: $('#voiceHint'),
+    styleSelect: $('#styleSelect'), voiceSelect: $('#voiceSelect'), rateSelect: $('#rateSelect'), testVoice: $('#btnTestVoice'), voiceHint: $('#voiceHint'),
     lobby: $('#lobby'), start: $('#btnStart'), resume: $('#btnResume'), lobbyAgenda: $('#lobbyAgenda'),
   };
 
@@ -517,11 +550,11 @@
     if (state.chunk >= seq.length) { endOfSequence(); return; }
     const c = seq[state.chunk];
     state.chunkStart = performance.now();
-    state.chunkMs = msFor(c.words, state.rate);
+    state.chunkMs = msFor(c.words, speakRate()) + style().sentenceGapMs;
     ui.caption(c.text);
     ui.transcript();
     ui.status();
-    narrator.say(c.text, state.rate, () => {
+    narrator.say(c.text, voiceOpts(), () => {
       state.chunk += 1;
       speakNext();
     });
@@ -550,7 +583,7 @@
       ui.tick();
       return;
     }
-    state.gapTimer = setTimeout(() => go(state.index + 1, { autoplay: true }), SLIDE_GAP_MS);
+    state.gapTimer = setTimeout(() => go(state.index + 1, { autoplay: true }), style().slideGapMs);
   }
 
   function answerPoll(s, oi) {
@@ -651,9 +684,21 @@
     narrator.voice = narrator.voices.find((v) => v.voiceURI === el.voiceSelect.value) || narrator.voice;
     narrator.broken = false;
     narrator.suspicious = 0;
-    store.set('voice-uri', el.voiceSelect.value);
+    store.set(`voice-uri:${state.style}`, el.voiceSelect.value);
     restartChunk();
   });
+  el.styleSelect.value = state.style;
+  el.styleSelect.addEventListener('change', () => {
+    state.style = STYLES[el.styleSelect.value] ? el.styleSelect.value : 'documentary';
+    store.set('style', state.style);
+    loadVoices();          // each style remembers its own voice, or picks its preferred one
+    ui.timeline();
+    ui.agendas();
+    ui.slideChrome();
+    restartChunk();
+    ui.tick();
+  });
+
   el.rateSelect.value = String(state.rate);
   if (el.rateSelect.value !== String(state.rate)) { state.rate = 1; el.rateSelect.value = '1'; }
   el.rateSelect.addEventListener('change', () => {
@@ -666,7 +711,7 @@
   });
   el.testVoice.addEventListener('click', () => {
     if (state.playing) pause();
-    narrator.say('This is how the narration will sound during the session.', state.rate, () => {});
+    narrator.say('This is how the narration will sound during the session.', voiceOpts(), () => {});
   });
 
   document.addEventListener('click', (e) => {

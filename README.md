@@ -1,8 +1,8 @@
 # PSADT v4 Technician Training
 
-A narrated, self-paced training session on **PSAppDeployToolkit v4** for technicians who build and deploy packages. It runs about 20 minutes across six modules with three knowledge checks, and it's a static site with no build step.
+A narrated, self-paced training session on **PSAppDeployToolkit v4** for technicians who build and deploy packages. It runs about 20 minutes (a little over 21 at documentary pacing) across six modules with three knowledge checks, and it's a static site with no build step.
 
-- **Narration** uses the browser's built-in speech voices (Edge has the most natural ones), with captions and a live transcript.
+- **Narration** uses the browser's built-in speech voices, with captions and a live transcript. The default **Documentary narrator** style picks the deepest voice available, lowers the pitch and slows the pacing; **Standard** is switchable in the Audio tab. Edge on Windows has the best voices.
 - **Knowledge checks** pause playback until the viewer answers, then explain the answer.
 - **Presenting remotely?** Run it full screen (`F`) and share computer audio along with your screen.
 
